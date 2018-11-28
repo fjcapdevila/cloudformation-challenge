@@ -1,0 +1,42 @@
+# Taken from: https://cloud-images.ubuntu.com/locator/ec2/
+
+us-east-1:
+  bionic: ami-0d2505740b82f7948
+us-west-1:
+  bionic: ami-09c5eca75eed8245a
+ap-northeast-1:
+  bionic: ami-0fd02119f1653c976
+sa-east-1:
+  bionic: ami-04fb8967affdf73b6
+ap-southeast-1:
+  bionic: ami-0efb24bbbf33a2fd7
+ca-central-1:
+  bionic: ami-0388b9f812caf5c3f
+ap-south-1:
+  bionic: ami-01187fe59c07cd350
+eu-central-1:
+  bionic: ami-080d06f90eb293a27
+eu-west-1:
+  bionic: ami-02790d1ebf3b5181d
+cn-north-1:
+  bionic: ami-05596fb52c3802012
+cn-northwest-1:
+  bionic: ami-03f7db8b059795736
+us-gov-east-1:
+  bionic: ami-825fb8f3
+us-gov-west-1:
+  bionic: ami-b44b2fd5
+ap-northeast-2:
+  bionic: ami-096560874cb404a4d
+ap-southeast-2:
+  bionic: ami-03932cb7d3a1a69af
+us-west-2:
+  bionic: ami-0f05ad41860678734
+us-east-2:
+  bionic: ami-0cf8cc36b8c81c6de
+eu-west-2:
+  bionic: ami-06328f1e652dc7605
+ap-northeast-3:
+  bionic: ami-064d6dc91cdb4daa8
+eu-west-3:
+  bionic: ami-0697abcfa8916e673
