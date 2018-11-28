@@ -1,0 +1,150 @@
+---
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: A Python/Flask/MongoDB stack
+
+Parameters:
+
+  InstanceType:
+    Description: Instance type of virtual server
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+  VPCParameter:
+    Description: VPC to launch instances into
+    Type: AWS::EC2::VPC::Id
+
+  SubnetParameter:
+    Description: Subnet to launch instances into
+    Type: AWS::EC2::Subnet::Id
+
+  KeyName:
+    Description: Key Pair name
+    Type: AWS::EC2::KeyPair::KeyName
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      bionic: ami-0d2505740b82f7948
+    us-west-1:
+      bionic: ami-09c5eca75eed8245a
+    ap-northeast-1:
+      bionic: ami-0fd02119f1653c976
+    sa-east-1:
+      bionic: ami-04fb8967affdf73b6
+    ap-southeast-1:
+      bionic: ami-0efb24bbbf33a2fd7
+    ca-central-1:
+      bionic: ami-0388b9f812caf5c3f
+    ap-south-1:
+      bionic: ami-01187fe59c07cd350
+    eu-central-1:
+      bionic: ami-080d06f90eb293a27
+    eu-west-1:
+      bionic: ami-02790d1ebf3b5181d
+    cn-north-1:
+      bionic: ami-05596fb52c3802012
+    cn-northwest-1:
+      bionic: ami-03f7db8b059795736
+    us-gov-east-1:
+      bionic: ami-825fb8f3
+    us-gov-west-1:
+      bionic: ami-b44b2fd5
+    ap-northeast-2:
+      bionic: ami-096560874cb404a4d
+    ap-southeast-2:
+      bionic: ami-03932cb7d3a1a69af
+    us-west-2:
+      bionic: ami-0f05ad41860678734
+    us-east-2:
+      bionic: ami-0cf8cc36b8c81c6de
+    eu-west-2:
+      bionic: ami-06328f1e652dc7605
+    ap-northeast-3:
+      bionic: ami-064d6dc91cdb4daa8
+    eu-west-3:
+      bionic: ami-0697abcfa8916e673
+
+Resources:
+
+  ELBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: elb-sg
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      VpcId:
+        Ref: VPCParameter
+
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ec2-sg
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+        - FromPort: 5000
+          IpProtocol: tcp
+          SourceSecurityGroupId: !Ref ELBSecurityGroup
+          ToPort: 5000
+      VpcId: !Ref VPCParameter
+
+  MongoSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ec2-sg
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+        - FromPort: 27017
+          IpProtocol: tcp
+          SourceSecurityGroupId: !Ref EC2SecurityGroup
+          ToPort: 27017
+      VpcId: !Ref VPCParameter
+
+  MongoDB:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', bionic]
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: 'true'
+          DeviceIndex: '0'
+          GroupSet:
+            - !Ref MongoSecurityGroup
+          SubnetId: !Ref SubnetParameter
+      Tags:
+        - Key: Name
+          Value: MongoDB
+      UserData:
+        'Fn::Base64': !Sub |
+          #!/bin/bash -x
+          apt update
+          apt install -y mongodb
+          sed -i -e 's/127.0.0.1/0.0.0.0/g' /etc/mongodb.conf
+          systemctl restart mongodb
+
+Outputs:
+  MongoDB:
+    Value: !Sub http://${MongoDB.PublicIp}
+    Description: Load Balancer URL
