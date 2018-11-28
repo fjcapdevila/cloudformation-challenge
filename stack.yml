@@ -13,6 +13,13 @@ Parameters:
       - t2.micro
       - t2.small
       - t2.medium
+
+  InstanceCount:
+    Description: Number of instances to launch (1-4)
+    Type: String
+    # Let´s add a basic validation
+    AllowedValues: ['1', '2', '3', '4']
+
   VPCParameter:
     Description: VPC to launch instances into
     Type: AWS::EC2::VPC::Id
@@ -206,6 +213,65 @@ Resources:
           apt install -y mongodb
           sed -i -e 's/127.0.0.1/0.0.0.0/g' /etc/mongodb.conf
           systemctl restart mongodb
+
+  LaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: true
+      ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', bionic]
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      SecurityGroups:
+        - !Ref EC2SecurityGroup
+      UserData:
+        'Fn::Base64': !Sub |
+            #!/bin/bash -ex
+            apt update
+            apt install -y supervisor python3 git python3-venv
+            adduser --home /opt/myapp myapp --disabled-login --disabled-password --gecos ""
+            sudo -u myapp python3 -m venv /opt/myapp/venv
+            sudo -u myapp /opt/myapp/venv/bin/pip install flask
+            sudo -u myapp /opt/myapp/venv/bin/pip install bson
+            sudo -u myapp /opt/myapp/venv/bin/pip install pymongo
+            sudo -u myapp git clone https://github.com/sarathlalsaseendran/FlaskWithMongoDB /opt/myapp/repo
+            sed -i -e 's/127.0.0.1:27017/${MongoDB.PrivateIp}:27017/g' /opt/myapp/repo/app.py
+            sed -i -e 's/app.run()/app.run(host="0.0.0.0", port=5000)/g' /opt/myapp/repo/app.py
+            cat <<EOF >> /etc/supervisor/conf.d/myapp.conf
+            [program:myapp]
+            directory=/opt/myapp/repo
+            user=myapp
+            command=/opt/myapp/venv/bin/python app.py
+            autostart=true
+            autorestart=true
+            EOF
+            systemctl restart supervisor
+            /opt/aws/bin/cfn-signal -e 0 --region ${AWS::Region} --stack ${AWS::StackName} --resource AutoScalingGroup
+
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MinSize: '1'
+      MaxSize: '4'
+      DesiredCapacity: !Ref InstanceCount
+      LaunchConfigurationName: !Ref LaunchConfiguration
+      VPCZoneIdentifier:
+        - !Ref SubnetParameter
+      LoadBalancerNames:
+        - !Ref ELB
+      HealthCheckGracePeriod: 60
+      HealthCheckType: ELB
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT10M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: '2'
+        MinInstancesInService: '1'
+        PauseTime: PT10M
+        SuspendProcesses:
+          - AlarmNotification
+        WaitOnResourceSignals: true
 
 Outputs:
   MongoDB:
