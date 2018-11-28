@@ -227,8 +227,14 @@ Resources:
       UserData:
         'Fn::Base64': !Sub |
             #!/bin/bash -ex
-            apt update
-            apt install -y supervisor python3 git python3-venv
+            export DEBIAN_FRONTEND=noninteractive
+            # Update repositories list and upgrade packages
+            apt update && apt upgrade -y
+            # Install required packages
+            apt install -y supervisor python3 git python3-venv python-pip
+            # Install Cloudformation scripts
+            pip install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+            # Create a user for the app
             adduser --home /opt/myapp myapp --disabled-login --disabled-password --gecos ""
             sudo -u myapp python3 -m venv /opt/myapp/venv
             sudo -u myapp /opt/myapp/venv/bin/pip install flask
@@ -245,8 +251,10 @@ Resources:
             autostart=true
             autorestart=true
             EOF
+            # Restart supervisor service to force reload its configuration
             systemctl restart supervisor
-            /opt/aws/bin/cfn-signal -e 0 --region ${AWS::Region} --stack ${AWS::StackName} --resource AutoScalingGroup
+            # Notify AutoScalingGroup
+            /usr/local/bin/cfn-signal -e 0 --region ${AWS::Region} --stack ${AWS::StackName} --resource AutoScalingGroup
 
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
