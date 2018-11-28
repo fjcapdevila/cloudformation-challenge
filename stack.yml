@@ -17,6 +17,7 @@ Parameters:
   InstanceCount:
     Description: Number of instances to launch (1-4)
     Type: String
+    Default: '2'
     # Let´s add a basic validation
     AllowedValues: ['1', '2', '3', '4']
 
