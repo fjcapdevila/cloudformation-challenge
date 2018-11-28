@@ -121,6 +121,30 @@ Resources:
           ToPort: 27017
       VpcId: !Ref VPCParameter
 
+  ELB:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      ConnectionDrainingPolicy:
+        Enabled: true
+        Timeout: 30
+      CrossZone: true
+      HealthCheck:
+        HealthyThreshold: '2'
+        Interval: '10'
+        Target: HTTP:5000/
+        Timeout: '5'
+        UnhealthyThreshold: '2'
+      Listeners:
+        - InstancePort: '5000'
+          InstanceProtocol: HTTP
+          LoadBalancerPort: '80'
+          Protocol: HTTP
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref ELBSecurityGroup
+      Subnets:
+        - !Ref SubnetParameter
+
   App:
     Type: AWS::EC2::Instance
     Properties:
@@ -148,6 +172,7 @@ Resources:
             sudo -u myapp /opt/myapp/venv/bin/pip install pymongo
             sudo -u myapp git clone https://github.com/sarathlalsaseendran/FlaskWithMongoDB /opt/myapp/repo
             sed -i -e 's/127.0.0.1:27017/${MongoDB.PrivateIp}:27017/g' /opt/myapp/repo/app.py
+            sed -i -e 's/app.run()/app.run(host="0.0.0.0", port=5000)/g' /opt/myapp/repo/app.py
             cat <<EOF >> /etc/supervisor/conf.d/myapp.conf
             [program:myapp]
             directory=/opt/myapp/repo
@@ -189,3 +214,6 @@ Outputs:
   App:
     Value: !Sub ubuntu@${App.PublicIp}
     Description: SSH
+  LoadBalancer:
+    Value: !Sub http://${ELB.DNSName}/
+    Description: Load Balancer URL
