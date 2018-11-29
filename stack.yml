@@ -153,45 +153,6 @@ Resources:
       Subnets:
         - !Ref SubnetParameter
 
-  App:
-    Type: AWS::EC2::Instance
-    Properties:
-      ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', bionic]
-      InstanceType: t2.micro
-      KeyName: !Ref KeyName
-      NetworkInterfaces:
-        - AssociatePublicIpAddress: 'true'
-          DeviceIndex: '0'
-          GroupSet:
-            - !Ref EC2SecurityGroup
-          SubnetId: !Ref SubnetParameter
-      Tags:
-        - Key: Name
-          Value: My App
-      UserData:
-        'Fn::Base64': !Sub |
-            #!/bin/bash -ex
-            apt update
-            apt install -y supervisor python3 git python3-venv
-            adduser --home /opt/myapp myapp --disabled-login --disabled-password --gecos ""
-            sudo -u myapp python3 -m venv /opt/myapp/venv
-            sudo -u myapp /opt/myapp/venv/bin/pip install flask
-            sudo -u myapp /opt/myapp/venv/bin/pip install bson
-            sudo -u myapp /opt/myapp/venv/bin/pip install pymongo
-            sudo -u myapp git clone https://github.com/sarathlalsaseendran/FlaskWithMongoDB /opt/myapp/repo
-            sed -i -e 's/127.0.0.1:27017/${MongoDB.PrivateIp}:27017/g' /opt/myapp/repo/app.py
-            sed -i -e 's/app.run()/app.run(host="0.0.0.0", port=5000)/g' /opt/myapp/repo/app.py
-            cat <<EOF >> /etc/supervisor/conf.d/myapp.conf
-            [program:myapp]
-            directory=/opt/myapp/repo
-            user=myapp
-            command=/opt/myapp/venv/bin/python app.py
-            autostart=true
-            autorestart=true
-            EOF
-            systemctl restart supervisor
-            /opt/aws/bin/cfn-signal -e 0 --region ${AWS::Region} --stack ${AWS::StackName} --resource AutoScalingGroup
-
   MongoDB:
     Type: AWS::EC2::Instance
     Properties:
