@@ -33,6 +33,7 @@ Parameters:
     Description: Key Pair name
     Type: AWS::EC2::KeyPair::KeyName
 
+# Mappings for Official Ubuntu Bionic images
 Mappings:
   RegionMap:
     us-east-1:
@@ -77,7 +78,6 @@ Mappings:
       bionic: ami-0697abcfa8916e673
 
 Resources:
-
   ELBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -210,10 +210,13 @@ Resources:
       UserData:
         'Fn::Base64': !Sub |
           #!/bin/bash -x
+          apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 2930ADAE8CAF5059EE73BB4B58712A2291FA4AD5
+          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.6 multiverse" > /etc/apt/sources.list.d/mongodb-org-3.6.list
           apt update
-          apt install -y mongodb
-          sed -i -e 's/127.0.0.1/0.0.0.0/g' /etc/mongodb.conf
-          systemctl restart mongodb
+          apt install -y mongodb-org
+          sed -i -e 's/127.0.0.1/0.0.0.0/g' /etc/mongod.conf
+          sudo systemctl enable mongod.service
+          sudo systemctl restart mongod.service
 
   LaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
@@ -283,12 +286,11 @@ Resources:
         WaitOnResourceSignals: true
 
 Outputs:
+
   MongoDB:
     Value: !Sub ubuntu@${MongoDB.PublicIp}
     Description: SSH
-  App:
-    Value: !Sub ubuntu@${App.PublicIp}
-    Description: SSH
+
   LoadBalancer:
     Value: !Sub http://${ELB.DNSName}/
     Description: Load Balancer URL
